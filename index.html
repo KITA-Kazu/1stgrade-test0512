@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Quiz - Stage 1-4</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #f0f4f8; color: #333; padding: 20px; }
+        .container { max-width: 650px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { color: #007bff; margin-bottom: 20px; }
+        .btn { padding: 12px 24px; margin: 8px; cursor: pointer; border: none; border-radius: 50px; background: #007bff; color: white; font-size: 16px; transition: 0.3s; }
+        .btn:hover { background: #0056b3; transform: translateY(-2px); }
+        .word-btn { background: #f8f9fa; color: #333; border: 2px solid #dee2e6; border-radius: 10px; }
+        .word-btn:active { background: #e2e6ea; }
+        .answer-box { min-height: 70px; border: 2px dashed #007bff; border-radius: 15px; margin: 20px 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; padding: 15px; background: #fdfdfd; }
+        .word-pool { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 25px; }
+        .hidden { display: none; }
+        #feedback { font-weight: bold; height: 30px; margin: 15px 0; font-size: 1.1em; }
+        .correct { color: #28a745; }
+        .wrong { color: #dc3545; }
+        .progress-info { font-size: 0.9em; color: #666; margin-bottom: 10px; font-weight: bold; }
+        input[type="text"] { padding: 12px; border-radius: 8px; border: 2px solid #ddd; width: 70%; font-size: 16px; margin-bottom: 20px; outline: none; }
+        input[type="text"]:focus { border-color: #007bff; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="menu">
+    <h1>English Sentence Quiz</h1>
+    <p>全問正解して合格記録を送信しよう！</p>
+    <input type="text" id="student-name" placeholder="名字と名前を入力してください">
+    <div id="stage-buttons"></div>
+</div>
+
+<div class="container hidden" id="quiz-area">
+    <div class="progress-info" id="progress"></div>
+    <p id="jp-text" style="font-size: 1.4em; font-weight: bold; color: #444; min-height: 2em;"></p>
+    <div class="answer-box" id="answer-box"></div>
+    <div class="word-pool" id="word-pool"></div>
+    <div id="feedback"></div>
+    <button class="btn" onclick="backToMenu()" style="background:#6c757d; margin-top:40px; font-size: 0.9em;">メニューへ戻る</button>
+</div>
+
+<script>
+/** --- 設定：Googleフォームの情報をここに入れてください --- **/
+const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeulEX0VZTtR2icFnelqk3Mi9GpLhFZytg3fF_DbjqJhXmxVA/formResponse";
+const NAME_ENTRY = "entry.1889427792";
+const STAGE_ENTRY = "entry.252700540";
+/** ----------------------------------------------------- **/
+
+const quizData = {
+    1: [
+        { jp: "私たちの学校は8時半に始まります。", en: "Our school day begins at 8:30." },
+        { jp: "ぼくの名前は田中健です。", en: "My name is Tanaka Ken." },
+        { jp: "姉は教師になりました。", en: "My sister became a teacher." },
+        { jp: "君のトランペット，素敵だね！", en: "Your trumpet looks nice!" },
+        { jp: "今日は気分がいい。", en: "I feel great today." },
+        { jp: "私は先月このトランペットを父からもらいました。", en: "I got this trumpet from my father last month." },
+        { jp: "友人たちはときどき私にアドバイスをくれます。", en: "My friends sometimes give me advice." },
+        { jp: "ケイトはお父さんにネクタイを買ってあげた。", en: "Kate bought her father a tie." },
+        { jp: "友人たちは私をメグと呼びます。", en: "My friends call me Meg." },
+        { jp: "そのプレゼントは彼女を喜ばせた。", en: "The present made her happy." }
+    ],
+    2: [
+        { jp: "私の学校には時計塔があります。", en: "There is a clock tower in my school." },
+        { jp: "彼は昨夜ロンドンへ向けて出発した。", en: "He left for London last night." },
+        { jp: "彼は電車の定期券をどこかに置き忘れた。", en: "He left his train pass somewhere." },
+        { jp: "彼は私の電話に長いメッセージを残した。", en: "He left me a long message on my phone." },
+        { jp: "彼はドアを開けたままにした。", en: "He left the door open." },
+        { jp: "ミカは犬を2匹飼っています。", en: "Mika has two dogs." },
+        { jp: "私は猫が好きです。", en: "I like cats." },
+        { jp: "姉は毎週金曜日にダンスのレッスンを受けている。", en: "My sister takes dance lessons on Fridays." },
+        { jp: "トムはその知らせを聞いたとき、とても幸せそうに見えた。", en: "Tom seemed very happy when he heard the news." }
+    ],
+    3: [
+        { jp: "メグは子供の頃、よく動物園に行きました。", en: "Meg often went to the zoo when she was a child." },
+        { jp: "私は先週末、リョウの故郷へ行きました。", en: "I went to Ryo’s hometown last weekend." },
+        { jp: "昨夜あなたが電話をくれたとき、私はテレビドラマを見ていました。", en: "When you called me last night, I was watching a TV drama." },
+        { jp: "今忙しいんだ。後でかけ直すよ。", en: "I’m busy now. I’ll call you back later." },
+        { jp: "私は来月18歳になります。", en: "I will be eighteen next month." },
+        { jp: "今週の土曜日は天気が良くなるでしょう。", en: "The weather will be good this Saturday." },
+        { jp: "そのバンドはお昼頃、ステージで演奏しているところでしょう。", en: "The band will be playing on stage about noon." },
+        { jp: "私はカメラを持って山に行くつもりです。", en: "I’m going to take my camera with me to the mountains." },
+        { jp: "空が暗くなってきた。雨が降りそうだ。", en: "The sky is becoming dark. It’s going to rain." },
+        { jp: "私の担任の先生が明日、家に来ることになっています。", en: "My homeroom teacher is coming to my house tomorrow." }
+    ],
+    4: [
+        { jp: "私は金曜日の歓迎会に出席している予定です。", en: "I will be attending the welcome party on Friday." },
+        { jp: "次の急行列車は10時半に出発します。", en: "The next express train leaves at ten thirty." },
+        { jp: "パーティーでメグに会ったら、よろしく伝えてください。", en: "If you see Meg at the party, please say hello to her." },
+        { jp: "返信が遅れて申し訳ありません。ずっと忙しかったのです。", en: "I apologize for my late reply. I have been very busy." },
+        { jp: "ご用でしたか？ はい。荷物を運ぶのを手伝ってほしかったのです。", en: "Did you need me? Yes. I hoped you would help me with my baggage." },
+        { jp: "すみませんが、グリーンホテルへの道を教えていただけますか。", en: "Excuse me, but I’m wondering if you could tell me the way to Green Hotel." },
+        { jp: "やあ、元気？ まあまあだよ。", en: "Hi! How are you doing? Not bad." },
+        { jp: "もうバッグに荷物を詰めました。いつでも出発できます。", en: "I have already packed my bag. I’m ready to go anytime." },
+        { jp: "母は札幌に行ってしまったので、今は家にいません。", en: "My mother has gone to Sapporo, so she isn’t home now." },
+        { jp: "私は清水寺を3回訪れたことがあります。", en: "I’ve visited Kiyomizu-dera three times." }
+    ]
+};
+
+let currentStage = 1;
+let currentQuestionIndex = 0;
+let selectedWords = [];
+let studentName = "";
+
+// メニューボタン作成
+const stageButtonsArea = document.getElementById('stage-buttons');
+[1,2,3,4].forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.innerText = `Stage ${s}`;
+    btn.onclick = () => startStage(s);
+    stageButtonsArea.appendChild(btn);
+});
+
+function startStage(stage) {
+    studentName = document.getElementById('student-name').value.trim();
+    if (!studentName) {
+        alert("まずお名前を入力してください。");
+        return;
+    }
+    currentStage = stage;
+    currentQuestionIndex = 0;
+    document.getElementById('menu').classList.add('hidden');
+    document.getElementById('quiz-area').classList.remove('hidden');
+    showQuestion();
+}
+
+function showQuestion() {
+    selectedWords = [];
+    const q = quizData[currentStage][currentQuestionIndex];
+    document.getElementById('progress').innerText = `STAGE ${currentStage} - Q${currentQuestionIndex + 1} / ${quizData[currentStage].length}`;
+    document.getElementById('jp-text').innerText = q.jp;
+    document.getElementById('feedback').innerText = "";
+    document.getElementById('answer-box').innerHTML = "";
+    
+    // 記号を分離して単語リスト作成
+    const words = q.en.match(/\b[\w':-]+\b|[.!?]/g);
+    const shuffled = [...words].sort(() => Math.random() - 0.5);
+    
+    const pool = document.getElementById('word-pool');
+    pool.innerHTML = "";
+    shuffled.forEach(word => {
+        const btn = document.createElement('button');
+        btn.className = 'btn word-btn';
+        btn.innerText = word;
+        btn.onclick = () => selectWord(word, btn, words);
+        pool.appendChild(btn);
+    });
+}
+
+function selectWord(word, btn, correctSequence) {
+    selectedWords.push(word);
+    btn.style.visibility = 'hidden';
+    
+    const wordSpan = document.createElement('div');
+    wordSpan.className = 'btn';
+    wordSpan.style.background = '#eef2f3';
+    wordSpan.style.color = '#333';
+    wordSpan.style.cursor = 'default';
+    wordSpan.innerText = word;
+    document.getElementById('answer-box').appendChild(wordSpan);
+
+    if (selectedWords.length === correctSequence.length) {
+        if (selectedWords.join(' ') === correctSequence.join(' ')) {
+            document.getElementById('feedback').innerHTML = "<span class='correct'>正解！ Keep going!</span>";
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < quizData[currentStage].length) {
+                    showQuestion();
+                } else {
+                    completeStage();
+                }
+            }, 800);
+        } else {
+            document.getElementById('feedback').innerHTML = "<span class='wrong'>不正解... 1問目からやり直し！</span>";
+            setTimeout(() => {
+                currentQuestionIndex = 0; // 厳格モード：間違えたらそのステージの最初から
+                showQuestion();
+            }, 1200);
+        }
+    }
+}
+
+function completeStage() {
+    // 記録を送信
+    const reportUrl = `${FORM_URL}?${NAME_ENTRY}=${encodeURIComponent(studentName)}&${STAGE_ENTRY}=${encodeURIComponent("Stage " + currentStage)}`;
+    fetch(reportUrl, { mode: 'no-cors' });
+
+    document.getElementById('quiz-area').innerHTML = `
+        <h1 style="font-size: 3em;">🏆</h1>
+        <h2>CONGRATULATIONS!</h2>
+        <p style="font-size: 1.2em;">${studentName} さん<br>Stage ${currentStage} を満点でクリアしました！</p>
+        <p style="color: #666; font-size: 0.9em;">※合格記録を先生に送信しました。</p>
+        <button class="btn" onclick="location.reload()">タイトル画面へ戻る</button>
+    `;
+}
+
+function backToMenu() {
+    if(confirm("進行状況がリセットされますが、メニューに戻りますか？")) {
+        location.reload();
+    }
+}
+</script>
+</body>
+</html>
